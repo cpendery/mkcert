@@ -143,7 +143,7 @@ func main() {
 		log.Fatalln("ERROR: can't specify extra arguments when using -csr")
 	}
 	(&MKCert{
-		installMode: *installFlag, uninstallMode: *uninstallFlag, csrPath: *csrFlag,
+		InstallMode: *installFlag, UninstallMode: *uninstallFlag, csrPath: *csrFlag,
 		pkcs12: *pkcs12Flag, ecdsa: *ecdsaFlag, client: *clientFlag,
 		certFile: *certFileFlag, keyFile: *keyFileFlag, p12File: *p12FileFlag,
 	}).Run(flag.Args())
@@ -153,7 +153,7 @@ const rootName = "rootCA.pem"
 const rootKeyName = "rootCA-key.pem"
 
 type MKCert struct {
-	installMode, uninstallMode bool
+	InstallMode, UninstallMode bool
 	pkcs12, ecdsa, client      bool
 	keyFile, certFile, p12File string
 	csrPath                    string
@@ -176,12 +176,12 @@ func (m *MKCert) Run(args []string) {
 	fatalIfErr(os.MkdirAll(m.CAROOT, 0755), "failed to create the CAROOT")
 	m.loadCA()
 
-	if m.installMode {
+	if m.InstallMode {
 		m.install()
 		if len(args) == 0 {
 			return
 		}
-	} else if m.uninstallMode {
+	} else if m.UninstallMode {
 		m.uninstall()
 		return
 	} else {
