@@ -70,7 +70,7 @@ func init() {
 	}
 }
 
-func (m *mkcert) checkNSS() bool {
+func (m *MKCert) checkNSS() bool {
 	if !hasCertutil {
 		return false
 	}
@@ -86,7 +86,7 @@ func (m *mkcert) checkNSS() bool {
 	return success
 }
 
-func (m *mkcert) installNSS() bool {
+func (m *MKCert) installNSS() bool {
 	if m.forEachNSSProfile(func(profile string) {
 		cmd := exec.Command(certutilPath, "-A", "-d", profile, "-t", "C,,", "-n", m.caUniqueName(), "-i", filepath.Join(m.CAROOT, rootName))
 		out, err := execCertutil(cmd)
@@ -103,7 +103,7 @@ func (m *mkcert) installNSS() bool {
 	return true
 }
 
-func (m *mkcert) uninstallNSS() {
+func (m *MKCert) uninstallNSS() {
 	m.forEachNSSProfile(func(profile string) {
 		err := exec.Command(certutilPath, "-V", "-d", profile, "-u", "L", "-n", m.caUniqueName()).Run()
 		if err != nil {
@@ -128,7 +128,7 @@ func execCertutil(cmd *exec.Cmd) ([]byte, error) {
 	return out, err
 }
 
-func (m *mkcert) forEachNSSProfile(f func(profile string)) (found int) {
+func (m *MKCert) forEachNSSProfile(f func(profile string)) (found int) {
 	var profiles []string
 	profiles = append(profiles, nssDBs...)
 	for _, ff := range FirefoxProfiles {

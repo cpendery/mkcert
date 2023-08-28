@@ -54,7 +54,7 @@ func init() {
 	}
 }
 
-func (m *mkcert) checkJava() bool {
+func (m *MKCert) checkJava() bool {
 	if !hasKeytool {
 		return false
 	}
@@ -78,7 +78,7 @@ func (m *mkcert) checkJava() bool {
 	return exists(m.caCert, s1, keytoolOutput) || exists(m.caCert, s256, keytoolOutput)
 }
 
-func (m *mkcert) installJava() {
+func (m *MKCert) installJava() {
 	args := []string{
 		"-importcert", "-noprompt",
 		"-keystore", cacertsPath,
@@ -91,7 +91,7 @@ func (m *mkcert) installJava() {
 	fatalIfCmdErr(err, "keytool -importcert", out)
 }
 
-func (m *mkcert) uninstallJava() {
+func (m *MKCert) uninstallJava() {
 	args := []string{
 		"-delete",
 		"-alias", m.caUniqueName(),

@@ -48,11 +48,11 @@ func init() {
 	}
 }
 
-func (m *mkcert) systemTrustFilename() string {
+func (m *MKCert) systemTrustFilename() string {
 	return fmt.Sprintf(SystemTrustFilename, strings.Replace(m.caUniqueName(), " ", "_", -1))
 }
 
-func (m *mkcert) installPlatform() bool {
+func (m *MKCert) installPlatform() bool {
 	if SystemTrustCommand == nil {
 		log.Printf("Installing to the system store is not yet supported on this Linux 😣 but %s will still work.", NSSBrowsers)
 		log.Printf("You can also manually install the root certificate at %q.", filepath.Join(m.CAROOT, rootName))
@@ -74,7 +74,7 @@ func (m *mkcert) installPlatform() bool {
 	return true
 }
 
-func (m *mkcert) uninstallPlatform() bool {
+func (m *MKCert) uninstallPlatform() bool {
 	if SystemTrustCommand == nil {
 		return false
 	}

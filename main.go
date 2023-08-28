@@ -142,7 +142,7 @@ func main() {
 	if *csrFlag != "" && flag.NArg() != 0 {
 		log.Fatalln("ERROR: can't specify extra arguments when using -csr")
 	}
-	(&mkcert{
+	(&MKCert{
 		installMode: *installFlag, uninstallMode: *uninstallFlag, csrPath: *csrFlag,
 		pkcs12: *pkcs12Flag, ecdsa: *ecdsaFlag, client: *clientFlag,
 		certFile: *certFileFlag, keyFile: *keyFileFlag, p12File: *p12FileFlag,
@@ -152,7 +152,7 @@ func main() {
 const rootName = "rootCA.pem"
 const rootKeyName = "rootCA-key.pem"
 
-type mkcert struct {
+type MKCert struct {
 	installMode, uninstallMode bool
 	pkcs12, ecdsa, client      bool
 	keyFile, certFile, p12File string
@@ -168,7 +168,7 @@ type mkcert struct {
 	ignoreCheckFailure bool
 }
 
-func (m *mkcert) Run(args []string) {
+func (m *MKCert) Run(args []string) {
 	m.CAROOT = getCAROOT()
 	if m.CAROOT == "" {
 		log.Fatalln("ERROR: failed to find the default CA location, set one as the CAROOT env var")
@@ -264,7 +264,7 @@ func getCAROOT() string {
 	return filepath.Join(dir, "mkcert")
 }
 
-func (m *mkcert) install() {
+func (m *MKCert) install() {
 	if storeEnabled("system") {
 		if m.checkPlatform() {
 			log.Print("The local CA is already installed in the system trust store! 👍")
@@ -304,7 +304,7 @@ func (m *mkcert) install() {
 	log.Print("")
 }
 
-func (m *mkcert) uninstall() {
+func (m *MKCert) uninstall() {
 	if storeEnabled("nss") && hasNSS {
 		if hasCertutil {
 			m.uninstallNSS()
@@ -333,7 +333,7 @@ func (m *mkcert) uninstall() {
 	}
 }
 
-func (m *mkcert) checkPlatform() bool {
+func (m *MKCert) checkPlatform() bool {
 	if m.ignoreCheckFailure {
 		return true
 	}

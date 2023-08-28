@@ -32,7 +32,7 @@ var (
 	procCertOpenSystemStoreW             = modcrypt32.NewProc("CertOpenSystemStoreW")
 )
 
-func (m *mkcert) installPlatform() bool {
+func (m *MKCert) installPlatform() bool {
 	// Load cert
 	cert, err := ioutil.ReadFile(filepath.Join(m.CAROOT, rootName))
 	fatalIfErr(err, "failed to read root certificate")
@@ -51,7 +51,7 @@ func (m *mkcert) installPlatform() bool {
 	return true
 }
 
-func (m *mkcert) uninstallPlatform() bool {
+func (m *MKCert) uninstallPlatform() bool {
 	// We'll just remove all certs with the same serial number
 	// Open root store
 	store, err := openWindowsRootStore()
