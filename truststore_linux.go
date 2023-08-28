@@ -52,48 +52,61 @@ func (m *MKCert) systemTrustFilename() string {
 	return fmt.Sprintf(SystemTrustFilename, strings.Replace(m.caUniqueName(), " ", "_", -1))
 }
 
-func (m *MKCert) installPlatform() bool {
+func (m *MKCert) installPlatform() error {
 	if SystemTrustCommand == nil {
 		log.Printf("Installing to the system store is not yet supported on this Linux 😣 but %s will still work.", NSSBrowsers)
 		log.Printf("You can also manually install the root certificate at %q.", filepath.Join(m.CAROOT, rootName))
-		return false
+		return nil
 	}
 
 	cert, err := ioutil.ReadFile(filepath.Join(m.CAROOT, rootName))
-	fatalIfErr(err, "failed to read root certificate")
+	if err != nil {
+		return fmt.Errorf("failed to read root certificate: %w", err)
+	}
 
 	cmd := commandWithSudo("tee", m.systemTrustFilename())
 	cmd.Stdin = bytes.NewReader(cert)
 	out, err := cmd.CombinedOutput()
-	fatalIfCmdErr(err, "tee", out)
+	if err != nil {
+		return fmt.Errorf("failed to execute 'tee' with output %s: %w", out, err)
+	}
 
 	cmd = commandWithSudo(SystemTrustCommand...)
 	out, err = cmd.CombinedOutput()
-	fatalIfCmdErr(err, strings.Join(SystemTrustCommand, " "), out)
+	if err != nil {
+		return fmt.Errorf("failed to execute '%s' with output %s: %w", strings.Join(SystemTrustCommand, " "), out, err)
+	}
 
-	return true
+	return nil
 }
 
-func (m *MKCert) uninstallPlatform() bool {
+func (m *MKCert) uninstallPlatform() error {
 	if SystemTrustCommand == nil {
-		return false
+		log.Printf("Uninstalling to the system store is not yet supported on this Linux but %s will still work.", NSSBrowsers)
+		return nil
 	}
 
 	cmd := commandWithSudo("rm", "-f", m.systemTrustFilename())
 	out, err := cmd.CombinedOutput()
-	fatalIfCmdErr(err, "rm", out)
+	if err != nil {
+		return fmt.Errorf("failed to execute 'rm' with output %s: %w", out, err)
+	}
 
 	// We used to install under non-unique filenames.
 	legacyFilename := fmt.Sprintf(SystemTrustFilename, "mkcert-rootCA")
 	if pathExists(legacyFilename) {
 		cmd := commandWithSudo("rm", "-f", legacyFilename)
 		out, err := cmd.CombinedOutput()
-		fatalIfCmdErr(err, "rm (legacy filename)", out)
+		if err != nil {
+			return fmt.Errorf("failed to execute 'rm (legacy filename)' with output %s: %w", out, err)
+		}
 	}
 
 	cmd = commandWithSudo(SystemTrustCommand...)
 	out, err = cmd.CombinedOutput()
-	fatalIfCmdErr(err, strings.Join(SystemTrustCommand, " "), out)
 
-	return true
+	if err != nil {
+		return fmt.Errorf("failed to execute '%s' with output %s: %w", strings.Join(SystemTrustCommand, " "), out, err)
+	}
+	return nil
 }

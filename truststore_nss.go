@@ -6,6 +6,7 @@ package mkcert
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -70,7 +71,7 @@ func init() {
 	}
 }
 
-func (m *MKCert) checkNSS() bool {
+func (m *MKCert) CheckNSS() bool {
 	if !hasCertutil {
 		return false
 	}
@@ -86,33 +87,42 @@ func (m *MKCert) checkNSS() bool {
 	return success
 }
 
-func (m *MKCert) installNSS() bool {
+func (m *MKCert) installNSS() error {
+	var err error = nil
 	if m.forEachNSSProfile(func(profile string) {
 		cmd := exec.Command(certutilPath, "-A", "-d", profile, "-t", "C,,", "-n", m.caUniqueName(), "-i", filepath.Join(m.CAROOT, rootName))
-		out, err := execCertutil(cmd)
-		fatalIfCmdErr(err, "certutil -A -d "+profile, out)
+		out, execErr := execCertutil(cmd)
+		if execErr != nil {
+			err = fmt.Errorf("failed to execute 'certutil -A -d %s' with output %s: %w", profile, out, execErr)
+		}
 	}) == 0 {
-		log.Printf("ERROR: no %s security databases found", NSSBrowsers)
-		return false
+		return fmt.Errorf("no %s security databases found", NSSBrowsers)
 	}
-	if !m.checkNSS() {
+	if err != nil {
+		return err
+	}
+	if !m.CheckNSS() {
 		log.Printf("Installing in %s failed. Please report the issue with details about your environment at https://github.com/FiloSottile/mkcert/issues/new 👎", NSSBrowsers)
 		log.Printf("Note that if you never started %s, you need to do that at least once.", NSSBrowsers)
-		return false
+		return fmt.Errorf("failed to install in %s", NSSBrowsers)
 	}
-	return true
+	return nil
 }
 
-func (m *MKCert) uninstallNSS() {
+func (m *MKCert) uninstallNSS() error {
+	var err error = nil
 	m.forEachNSSProfile(func(profile string) {
-		err := exec.Command(certutilPath, "-V", "-d", profile, "-u", "L", "-n", m.caUniqueName()).Run()
-		if err != nil {
+		execErr := exec.Command(certutilPath, "-V", "-d", profile, "-u", "L", "-n", m.caUniqueName()).Run()
+		if execErr != nil {
 			return
 		}
 		cmd := exec.Command(certutilPath, "-D", "-d", profile, "-n", m.caUniqueName())
-		out, err := execCertutil(cmd)
-		fatalIfCmdErr(err, "certutil -D -d "+profile, out)
+		out, execErr := execCertutil(cmd)
+		if execErr != nil {
+			err = fmt.Errorf("failed to execute 'certutil -D -d %s' with output %s: %w", profile, out, execErr)
+		}
 	})
+	return err
 }
 
 // execCertutil will execute a "certutil" command and if needed re-execute

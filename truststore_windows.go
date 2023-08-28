@@ -7,6 +7,7 @@ package mkcert
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -32,38 +33,48 @@ var (
 	procCertOpenSystemStoreW             = modcrypt32.NewProc("CertOpenSystemStoreW")
 )
 
-func (m *MKCert) installPlatform() bool {
+func (m *MKCert) installPlatform() error {
 	// Load cert
 	cert, err := ioutil.ReadFile(filepath.Join(m.CAROOT, rootName))
-	fatalIfErr(err, "failed to read root certificate")
+	if err != nil {
+		return fmt.Errorf("failed to read root certificate: %w", err)
+	}
 	// Decode PEM
 	if certBlock, _ := pem.Decode(cert); certBlock == nil || certBlock.Type != "CERTIFICATE" {
-		fatalIfErr(fmt.Errorf("invalid PEM data"), "decode pem")
+		return errors.New("failed to decode pem: invalid PEM data")
 	} else {
 		cert = certBlock.Bytes
 	}
 	// Open root store
 	store, err := openWindowsRootStore()
-	fatalIfErr(err, "open root store")
+	if err != nil {
+		return fmt.Errorf("failed to open root store: %w", err)
+	}
 	defer store.close()
 	// Add cert
-	fatalIfErr(store.addCert(cert), "add cert")
-	return true
+	if err := store.addCert(cert); err != nil {
+		return fmt.Errorf("failed to add cert: %w", err)
+	}
+	return nil
 }
 
-func (m *MKCert) uninstallPlatform() bool {
+func (m *MKCert) uninstallPlatform() error {
 	// We'll just remove all certs with the same serial number
 	// Open root store
 	store, err := openWindowsRootStore()
-	fatalIfErr(err, "open root store")
+	if err != nil {
+		return fmt.Errorf("failed to open root store: %w", err)
+	}
 	defer store.close()
 	// Do the deletion
 	deletedAny, err := store.deleteCertsWithSerial(m.caCert.SerialNumber)
 	if err == nil && !deletedAny {
 		err = fmt.Errorf("no certs found")
 	}
-	fatalIfErr(err, "delete cert")
-	return true
+	if err != nil {
+		return fmt.Errorf("failed to delete cert: %w", err)
+	}
+	return nil
 }
 
 type windowsRootStore uintptr

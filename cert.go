@@ -15,6 +15,8 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -47,13 +49,15 @@ func init() {
 	}
 }
 
-func (m *MKCert) makeCert(hosts []string) {
+func (m *MKCert) makeCert(hosts []string) error {
 	if m.caKey == nil {
-		log.Fatalln("ERROR: can't create new certificates because the CA key (rootCA-key.pem) is missing")
+		return errors.New("can't create new certificates because the CA key (rootCA-key.pem) is missing")
 	}
 
 	priv, err := m.generateKey(false)
-	fatalIfErr(err, "failed to generate certificate key")
+	if err != nil {
+		return fmt.Errorf("failed to generate certificate key: %w", err)
+	}
 	pub := priv.(crypto.Signer).Public()
 
 	// Certificates last for 2 years and 3 months, which is always less than
@@ -102,47 +106,62 @@ func (m *MKCert) makeCert(hosts []string) {
 	}
 
 	cert, err := x509.CreateCertificate(rand.Reader, tpl, m.caCert, pub, m.caKey)
-	fatalIfErr(err, "failed to generate certificate")
+	if err != nil {
+		return fmt.Errorf("failed to generate certificate: %w", err)
+	}
 
 	certFile, keyFile, p12File := m.fileNames(hosts)
 
 	if !m.pkcs12 {
 		certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert})
 		privDER, err := x509.MarshalPKCS8PrivateKey(priv)
-		fatalIfErr(err, "failed to encode certificate key")
+		if err != nil {
+			return fmt.Errorf("failed to encode certificate key: %w", err)
+		}
 		privPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privDER})
 
 		if certFile == keyFile {
 			err = ioutil.WriteFile(keyFile, append(certPEM, privPEM...), 0600)
-			fatalIfErr(err, "failed to save certificate and key")
+			if err != nil {
+				return fmt.Errorf("failed to save certificate and key: %w", err)
+			}
 		} else {
 			err = ioutil.WriteFile(certFile, certPEM, 0644)
-			fatalIfErr(err, "failed to save certificate")
+			if err != nil {
+				return fmt.Errorf("failed to save certificate: %w", err)
+			}
 			err = ioutil.WriteFile(keyFile, privPEM, 0600)
-			fatalIfErr(err, "failed to save certificate key")
+			if err != nil {
+				return fmt.Errorf("failed to save certificate key: %w", err)
+			}
 		}
 	} else {
 		domainCert, _ := x509.ParseCertificate(cert)
 		pfxData, err := pkcs12.Encode(rand.Reader, priv, domainCert, []*x509.Certificate{m.caCert}, "changeit")
-		fatalIfErr(err, "failed to generate PKCS#12")
-		err = ioutil.WriteFile(p12File, pfxData, 0644)
-		fatalIfErr(err, "failed to save PKCS#12")
-	}
-
-	m.printHosts(hosts)
-
-	if !m.pkcs12 {
-		if certFile == keyFile {
-			log.Printf("\nThe certificate and key are at \"%s\" ✅\n\n", certFile)
-		} else {
-			log.Printf("\nThe certificate is at \"%s\" and the key at \"%s\" ✅\n\n", certFile, keyFile)
+		if err != nil {
+			return fmt.Errorf("failed to generate PKCS#12: %w", err)
 		}
-	} else {
-		log.Printf("\nThe PKCS#12 bundle is at \"%s\" ✅\n", p12File)
-		log.Printf("\nThe legacy PKCS#12 encryption password is the often hardcoded default \"changeit\" ℹ️\n\n")
+		err = ioutil.WriteFile(p12File, pfxData, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to save PKCS#12: %w", err)
+		}
 	}
 
-	log.Printf("It will expire on %s 🗓\n\n", expiration.Format("2 January 2006"))
+	// m.printHosts(hosts)
+
+	// if !m.pkcs12 {
+	// 	if certFile == keyFile {
+	// 		log.Printf("\nThe certificate and key are at \"%s\" ✅\n\n", certFile)
+	// 	} else {
+	// 		log.Printf("\nThe certificate is at \"%s\" and the key at \"%s\" ✅\n\n", certFile, keyFile)
+	// 	}
+	// } else {
+	// 	log.Printf("\nThe PKCS#12 bundle is at \"%s\" ✅\n", p12File)
+	// 	log.Printf("\nThe legacy PKCS#12 encryption password is the often hardcoded default \"changeit\" ℹ️\n\n")
+	// }
+
+	// log.Printf("It will expire on %s 🗓\n\n", expiration.Format("2 January 2006"))
+	return nil
 }
 
 func (m *MKCert) printHosts(hosts []string) {
@@ -279,32 +298,42 @@ func (m *MKCert) makeCertFromCSR() {
 }
 
 // loadCA will load or create the CA at CAROOT.
-func (m *MKCert) loadCA() {
+func (m *MKCert) loadCA() error {
 	if !pathExists(filepath.Join(m.CAROOT, rootName)) {
 		m.newCA()
 	}
 
 	certPEMBlock, err := ioutil.ReadFile(filepath.Join(m.CAROOT, rootName))
-	fatalIfErr(err, "failed to read the CA certificate")
+	if err != nil {
+		return fmt.Errorf("failed to read the CA certificate: %w", err)
+	}
 	certDERBlock, _ := pem.Decode(certPEMBlock)
 	if certDERBlock == nil || certDERBlock.Type != "CERTIFICATE" {
-		log.Fatalln("ERROR: failed to read the CA certificate: unexpected content")
+		return errors.New("failed to read the CA certificate: unexpected content")
 	}
 	m.caCert, err = x509.ParseCertificate(certDERBlock.Bytes)
-	fatalIfErr(err, "failed to parse the CA certificate")
+	if err != nil {
+		return fmt.Errorf("failed to parse the CA certificate: %w", err)
+	}
 
 	if !pathExists(filepath.Join(m.CAROOT, rootKeyName)) {
-		return // keyless mode, where only -install works
+		return nil // keyless mode, where only -install works
 	}
 
 	keyPEMBlock, err := ioutil.ReadFile(filepath.Join(m.CAROOT, rootKeyName))
-	fatalIfErr(err, "failed to read the CA key")
+	if err != nil {
+		return fmt.Errorf("failed to read the CA key: %w", err)
+	}
 	keyDERBlock, _ := pem.Decode(keyPEMBlock)
 	if keyDERBlock == nil || keyDERBlock.Type != "PRIVATE KEY" {
-		log.Fatalln("ERROR: failed to read the CA key: unexpected content")
+
+		errors.New("failed to read the CA key: unexpected content")
 	}
 	m.caKey, err = x509.ParsePKCS8PrivateKey(keyDERBlock.Bytes)
-	fatalIfErr(err, "failed to parse the CA key")
+	if err != nil {
+		return fmt.Errorf("failed to parse the CA key: %w", err)
+	}
+	return nil
 }
 
 func (m *MKCert) newCA() {
