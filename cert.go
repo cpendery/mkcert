@@ -184,12 +184,12 @@ func (m *MKCert) fileNames(hosts []string) (certFile, keyFile, p12File string) {
 	}
 
 	certFile = "./" + defaultName + ".pem"
-	if m.certFile != "" {
-		certFile = m.certFile
+	if m.CertFile != "" {
+		certFile = m.CertFile
 	}
 	keyFile = "./" + defaultName + "-key.pem"
-	if m.keyFile != "" {
-		keyFile = m.keyFile
+	if m.KeyFile != "" {
+		keyFile = m.KeyFile
 	}
 	p12File = "./" + defaultName + ".p12"
 	if m.p12File != "" {

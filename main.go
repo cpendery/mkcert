@@ -145,7 +145,7 @@ func main() {
 	(&MKCert{
 		InstallMode: *installFlag, UninstallMode: *uninstallFlag, csrPath: *csrFlag,
 		pkcs12: *pkcs12Flag, ecdsa: *ecdsaFlag, client: *clientFlag,
-		certFile: *certFileFlag, keyFile: *keyFileFlag, p12File: *p12FileFlag,
+		CertFile: *certFileFlag, KeyFile: *keyFileFlag, p12File: *p12FileFlag,
 	}).Run(flag.Args())
 }
 
@@ -155,7 +155,7 @@ const rootKeyName = "rootCA-key.pem"
 type MKCert struct {
 	InstallMode, UninstallMode bool
 	pkcs12, ecdsa, client      bool
-	keyFile, certFile, p12File string
+	KeyFile, CertFile, p12File string
 	csrPath                    string
 
 	CAROOT string
