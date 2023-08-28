@@ -170,6 +170,20 @@ type MKCert struct {
 	ignoreCheckFailure bool
 }
 
+func (m *MKCert) Load() error {
+	m.CAROOT = getCAROOT()
+	if m.CAROOT == "" {
+		return errors.New("failed to find the default CA location, set one as the CAROOT env var")
+	}
+	if err := os.MkdirAll(m.CAROOT, 0755); err != nil {
+		return fmt.Errorf("failed to create the CAROOT: %w", err)
+	}
+	if err := m.loadCA(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (m *MKCert) Run(args []string) error {
 	m.CAROOT = getCAROOT()
 	if m.CAROOT == "" {
