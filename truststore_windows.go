@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"syscall"
 	"unsafe"
@@ -35,7 +36,8 @@ var (
 
 func (m *MKCert) installPlatform() error {
 	// Load cert
-	cert, err := ioutil.ReadFile(filepath.Join(m.CAROOT, rootName))
+	certPath := filepath.Join(m.CAROOT, rootName)
+	cert, err := ioutil.ReadFile(certPath)
 	if err != nil {
 		return fmt.Errorf("failed to read root certificate: %w", err)
 	}
@@ -52,7 +54,7 @@ func (m *MKCert) installPlatform() error {
 	}
 	defer store.close()
 	// Add cert
-	if err := store.addCert(cert); err != nil {
+	if err := store.addCert(cert, certPath, m.UnsafeWindowsAdminCertInstallation); err != nil {
 		return fmt.Errorf("failed to add cert: %w", err)
 	}
 	return nil
@@ -99,7 +101,15 @@ func (w windowsRootStore) close() error {
 	return fmt.Errorf("failed to close windows root store: %v", err)
 }
 
-func (w windowsRootStore) addCert(cert []byte) error {
+func (w windowsRootStore) addCert(cert []byte, certPath string, unsafeAdminInstall bool) error {
+	if unsafeAdminInstall {
+		cmd := exec.Command("certutil", "-addstore", "Root", certPath)
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	// TODO: ok to always overwrite?
 	ret, _, err := procCertAddEncodedCertificateToStore.Call(
 		uintptr(w), // HCERTSTORE hCertStore
