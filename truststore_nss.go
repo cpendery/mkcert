@@ -71,6 +71,10 @@ func init() {
 	}
 }
 
+func (m *MKCert) HasNSS() bool {
+	return hasNSS
+}
+
 func (m *MKCert) CheckNSS() bool {
 	if !hasCertutil {
 		return false
